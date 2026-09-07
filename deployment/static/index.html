@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multiclass Classifier</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      color: #eaf0ff;
+      background: linear-gradient(135deg, #0b1020, #18234a);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .card {
+      width: min(760px, 100%);
+      padding: 32px;
+      border: 1px solid #344572;
+      border-radius: 18px;
+      background: rgba(18, 28, 58, 0.94);
+      box-shadow: 0 20px 55px rgba(0, 0, 0, 0.3);
+    }
+
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    p { color: #b5c2e3; margin: 0 0 28px; }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      color: #cbd6f3;
+      font-size: 14px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #405281;
+      border-radius: 8px;
+      background: #0f1832;
+      color: white;
+      font-size: 15px;
+    }
+
+    input:focus {
+      outline: 2px solid #6f9cff;
+      border-color: transparent;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 24px;
+      padding: 13px;
+      border: 0;
+      border-radius: 8px;
+      color: white;
+      background: #4f7cff;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 16px;
+    }
+
+    button:hover { background: #3c68e8; }
+
+    #result {
+      display: none;
+      margin-top: 24px;
+      padding: 18px;
+      border-radius: 10px;
+      background: #102647;
+      border: 1px solid #315884;
+    }
+
+    .error {
+      background: #421f2c !important;
+      border-color: #9d4456 !important;
+    }
+
+    @media (max-width: 560px) {
+      .card { padding: 22px; }
+      .features { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Multiclass Classification</h1>
+    <p>Enter ten feature values and submit them to receive a prediction.</p>
+
+    <form id="prediction-form">
+      <section class="features" id="features"></section>
+      <button type="submit">Predict Class</button>
+    </form>
+
+    <section id="result"></section>
+  </main>
+
+  <script>
+    const features = document.getElementById("features");
+    const form = document.getElementById("prediction-form");
+    const result = document.getElementById("result");
+
+    for (let i = 1; i <= 10; i++) {
+      features.insertAdjacentHTML("beforeend", `
+        <label>
+          Feature ${i}
+          <input type="number" step="any" name="f${i}" required placeholder="Enter value" />
+        </label>
+      `);
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const formData = new FormData(form);
+      const payload = {};
+
+      for (let i = 1; i <= 10; i++) {
+        payload[`f${i}`] = Number(formData.get(`f${i}`));
+      }
+
+      result.style.display = "block";
+      result.className = "";
+      result.innerHTML = "Predicting...";
+
+      try {
+        const response = await fetch("/predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Prediction could not be completed.");
+        }
+
+        let probabilityText = "";
+        if (data.probabilities) {
+          probabilityText = `<p><strong>Probabilities:</strong> ${
+            data.probabilities.map(value => (value * 100).toFixed(2) + "%").join(", ")
+          }</p>`;
+        }
+
+        result.innerHTML = `
+          <h2>Prediction: ${data.prediction}</h2>
+          <p><strong>Class index:</strong> ${data.class_index}</p>
+          ${probabilityText}
+        `;
+      } catch (error) {
+        result.className = "error";
+        result.innerHTML = `<strong>Error:</strong> ${error.message}`;
+      }
+    });
+  </script>
+</body>
+</html>
